@@ -1,3 +1,4 @@
 {
-  "name": "city-of-helsinki/wp-mu-autoloader"
+  "name": "city-of-helsinki/wp-mu-autoloader",
+  "type": "wordpress-muplugin"
 }
