@@ -177,3 +177,5 @@ class Autoloader
         return $this->count;
     }
 }
+
+new Autoloader();
