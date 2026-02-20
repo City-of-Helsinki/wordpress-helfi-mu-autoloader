@@ -1,8 +1,22 @@
 <?php
 
+/**
+  * Plugin Name: Helsinki Must-use Autoloader
+  * Plugin URI: https://github.com/City-of-Helsinki/wordpress-helfi-mu-autoloader/
+  * Description: Autoloads plugins installed in /must-plugins subdirectories. Forked from Bedrock Autoloader.
+  * Version: 2.0.0
+  * Author: City of Helsinki
+  * Author URI: https://www.hel.fi
+  * License: MIT License
+  * License URI: https://opensource.org/license/mit
+  */
+
 namespace CityOfHelsinki\WordPress\MU;
 
-// Forked from https://github.com/roots/bedrock-autoloader
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 class Autoloader
 {
     /** @var static Singleton instance */
@@ -31,17 +45,21 @@ class Autoloader
      */
     public function __construct()
     {
-        if (isset(self::$instance)) {
+        if ( isset( self::$instance ) ) {
             return;
         }
 
         self::$instance = $this;
 
-        $this->relativePath = '/../' . basename(WPMU_PLUGIN_DIR);
+        $this->relativePath = '/../' . basename( WPMU_PLUGIN_DIR );
 
-        if (is_admin()) {
-            add_filter('show_advanced_plugins', [$this, 'showInAdmin'], 0, 2);
+        if ( \is_admin() ) {
+            \add_filter( 'show_advanced_plugins', array( $this, 'showInAdmin' ), 0, 2 );
         }
+
+		if ( $this->isCli() ) {
+			\add_filter( 'all_plugins', array( $this, 'showInCli' ), 0, 1 );
+		}
 
         $this->loadPlugins();
     }
@@ -59,7 +77,7 @@ class Autoloader
             include_once WPMU_PLUGIN_DIR . '/' . func_get_args()[0];
         }, array_keys($this->cache['plugins']));
 
-        add_action('plugins_loaded', [$this, 'pluginHooks'], -9999);
+        \add_action( 'plugins_loaded', [$this, 'pluginHooks'], -9999 );
     }
 
     /**
@@ -69,12 +87,16 @@ class Autoloader
      * @return bool We return `false` to prevent WordPress from overriding our work
      * {@internal We add the plugin details ourselves, so we return false to disable the filter.}
      */
-    public function showInAdmin($show, $type)
+    public function showInAdmin( $show, $type )
     {
-        $screen = get_current_screen();
-        $current = is_multisite() ? 'plugins-network' : 'plugins';
+        $screen = \get_current_screen();
+        $current = \is_multisite() ? 'plugins-network' : 'plugins';
 
-        if ($screen->base !== $current || $type !== 'mustuse' || !current_user_can('activate_plugins')) {
+        if (
+			$screen->base !== $current
+			|| $type !== 'mustuse'
+			|| ! \current_user_can('activate_plugins')
+		) {
             return $show;
         }
 
@@ -85,19 +107,47 @@ class Autoloader
             return $auto_plugin;
         }, $this->autoPlugins);
 
-        $GLOBALS['plugins']['mustuse'] = array_unique(array_merge($this->autoPlugins, $this->muPlugins), SORT_REGULAR);
+        $GLOBALS['plugins']['mustuse'] = array_unique(
+			array_merge( $this->autoPlugins, $this->muPlugins ),
+			SORT_REGULAR
+		);
 
         return false;
     }
+
+	public function showInCli( $all_plugins )
+	{
+		$this->updateCache();
+
+		$active_plugins = array_unique(
+			array_merge(
+				\get_option( 'active_plugins', array() ),
+				array_keys( $this->autoPlugins )
+			)
+		);
+
+		\add_filter( 'option_active_plugins', fn() => $active_plugins, 0, 1 );
+
+		return array_unique(
+			array_merge( $all_plugins, $this->autoPlugins ),
+			SORT_REGULAR
+		);
+	}
 
     /**
      * This sets the cache or calls for an update
      */
     private function checkCache()
     {
-        $cache = get_site_option('city_of_helsinki_autoloader');
+        $cache = \get_site_option('city_of_helsinki_autoloader');
 
-        if ($cache === false || (isset($cache['plugins'], $cache['count']) && count($cache['plugins']) !== $cache['count'])) {
+        if (
+			$cache === false
+			|| (
+				isset( $cache['plugins'], $cache['count'] )
+				&& count ($cache['plugins'] ) !== $cache['count']
+			)
+		) {
             $this->updateCache();
             return;
         }
@@ -114,14 +164,17 @@ class Autoloader
     {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
-        $this->autoPlugins = get_plugins($this->relativePath);
-        $this->muPlugins   = get_mu_plugins();
-        $plugins           = array_diff_key($this->autoPlugins, $this->muPlugins);
-        $rebuild           = !isset($this->cache['plugins']);
-        $this->activated   = $rebuild ? $plugins : array_diff_key($plugins, $this->cache['plugins']);
-        $this->cache       = ['plugins' => $plugins, 'count' => $this->countPlugins()];
+        $this->autoPlugins = \get_plugins( $this->relativePath );
+        $this->muPlugins   = \get_mu_plugins();
+        $plugins           = array_diff_key( $this->autoPlugins, $this->muPlugins );
+        $rebuild           = ! isset( $this->cache['plugins'] );
+        $this->activated   = $rebuild ? $plugins : array_diff_key( $plugins, $this->cache['plugins'] );
+        $this->cache       = array(
+			'plugins' => $plugins,
+			'count' => $this->countPlugins()
+		);
 
-        update_site_option('city_of_helsinki_autoloader', $this->cache);
+        \update_site_option( 'city_of_helsinki_autoloader', $this->cache );
     }
 
     /**
@@ -131,12 +184,10 @@ class Autoloader
      */
     public function pluginHooks()
     {
-        if (!is_array($this->activated)) {
-            return;
-        }
-
-        foreach ($this->activated as $plugin_file => $plugin_info) {
-            do_action('activate_' . $plugin_file);
+        if ( is_array( $this->activated ) ) {
+			foreach ( $this->activated as $plugin_file => $plugin_info ) {
+	            \do_action( 'activate_' . $plugin_file );
+	        }
         }
     }
 
@@ -145,8 +196,8 @@ class Autoloader
      */
     private function validatePlugins()
     {
-        foreach ($this->cache['plugins'] as $plugin_file => $plugin_info) {
-            if (!file_exists(WPMU_PLUGIN_DIR . '/' . $plugin_file)) {
+        foreach ( $this->cache['plugins'] as $plugin_file => $plugin_info ) {
+            if ( ! file_exists( WPMU_PLUGIN_DIR . '/' . $plugin_file ) ) {
                 $this->updateCache();
                 break;
             }
@@ -163,19 +214,25 @@ class Autoloader
      */
     private function countPlugins()
     {
-        if (isset($this->count)) {
-            return $this->count;
-        }
+        if ( ! isset( $this->count ) ) {
+			$count = count( glob( WPMU_PLUGIN_DIR . '/*/', GLOB_ONLYDIR | GLOB_NOSORT ) );
 
-        $count = count(glob(WPMU_PLUGIN_DIR . '/*/', GLOB_ONLYDIR | GLOB_NOSORT));
-
-        if (!isset($this->cache['count']) || $count !== $this->cache['count']) {
-            $this->count = $count;
-            $this->updateCache();
+	        if (
+				! isset( $this->cache['count'] )
+				|| $count !== $this->cache['count']
+			) {
+	            $this->count = $count;
+	            $this->updateCache();
+	        }
         }
 
         return $this->count;
     }
+
+	private function isCli()
+	{
+		return defined( 'WP_CLI' ) && WP_CLI;
+	}
 }
 
 new Autoloader();
