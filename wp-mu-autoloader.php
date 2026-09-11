@@ -57,10 +57,6 @@ class Autoloader
             \add_filter( 'show_advanced_plugins', array( $this, 'showInAdmin' ), 0, 2 );
         }
 
-		if ( $this->isCli() ) {
-			\add_filter( 'all_plugins', array( $this, 'showInCli' ), 0, 1 );
-		}
-
         $this->loadPlugins();
     }
 
@@ -114,25 +110,6 @@ class Autoloader
 
         return false;
     }
-
-	public function showInCli( $all_plugins )
-	{
-		$this->updateCache();
-
-		$active_plugins = array_unique(
-			array_merge(
-				\get_option( 'active_plugins', array() ),
-				array_keys( $this->autoPlugins )
-			)
-		);
-
-		\add_filter( 'option_active_plugins', fn() => $active_plugins, 0, 1 );
-
-		return array_unique(
-			array_merge( $all_plugins, $this->autoPlugins ),
-			SORT_REGULAR
-		);
-	}
 
     /**
      * This sets the cache or calls for an update
@@ -228,11 +205,6 @@ class Autoloader
 
         return $this->count;
     }
-
-	private function isCli()
-	{
-		return defined( 'WP_CLI' ) && WP_CLI;
-	}
 }
 
 new Autoloader();
