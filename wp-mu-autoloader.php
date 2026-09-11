@@ -4,7 +4,7 @@
   * Plugin Name: Helsinki Must-use Autoloader
   * Plugin URI: https://github.com/City-of-Helsinki/wordpress-helfi-mu-autoloader/
   * Description: Autoloads plugins installed in /must-plugins subdirectories. Forked from Bedrock Autoloader.
-  * Version: 3.0.0
+  * Version: 2.1.0
   * Author: City of Helsinki
   * Author URI: https://www.hel.fi
   * License: MIT License
