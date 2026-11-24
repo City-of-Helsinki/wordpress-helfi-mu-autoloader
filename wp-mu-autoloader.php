@@ -4,7 +4,7 @@
   * Plugin Name: Helsinki Must-use Autoloader
   * Plugin URI: https://github.com/City-of-Helsinki/wordpress-helfi-mu-autoloader/
   * Description: Autoloads plugins installed in /must-plugins subdirectories. Forked from Bedrock Autoloader.
-  * Version: 2.1.0
+  * Version: 2.2.0
   * Author: City of Helsinki
   * Author URI: https://www.hel.fi
   * License: MIT License
@@ -56,10 +56,6 @@ class Autoloader
         if ( \is_admin() ) {
             \add_filter( 'show_advanced_plugins', array( $this, 'showInAdmin' ), 0, 2 );
         }
-
-		if ( $this->isCli() ) {
-			\add_filter( 'all_plugins', array( $this, 'showInCli' ), 0, 1 );
-		}
 
 		$this->requireComposerAutoload();
 
@@ -116,25 +112,6 @@ class Autoloader
 
         return false;
     }
-
-	public function showInCli( $all_plugins )
-	{
-		$this->updateCache();
-
-		$active_plugins = array_unique(
-			array_merge(
-				\get_option( 'active_plugins', array() ),
-				array_keys( $this->autoPlugins )
-			)
-		);
-
-		\add_filter( 'option_active_plugins', fn() => $active_plugins, 0, 1 );
-
-		return array_unique(
-			array_merge( $all_plugins, $this->autoPlugins ),
-			SORT_REGULAR
-		);
-	}
 
     /**
      * This sets the cache or calls for an update
@@ -254,11 +231,6 @@ class Autoloader
 	{
 		return defined( 'WP_MU_AUTOLOADER_DISABLE_COMPOSER_AUTOLOAD' )
 			&& WP_MU_AUTOLOADER_DISABLE_COMPOSER_AUTOLOAD;
-	}
-
-	private function isCli()
-	{
-		return defined( 'WP_CLI' ) && WP_CLI;
 	}
 }
 
